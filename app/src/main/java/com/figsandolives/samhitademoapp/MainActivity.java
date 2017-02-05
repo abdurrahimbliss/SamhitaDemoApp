@@ -16,7 +16,14 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -24,12 +31,21 @@ public class MainActivity extends AppCompatActivity {
     private Button mSendButton;
     private EditText mInputBox;
     private ListView mListView;
+    private MyAdapter myAdapter;
 
+    private FirebaseDatabase mFirebaseDatabase;
+    private DatabaseReference mMessagesReference;
+
+    private ChildEventListener mChildEventListener;
+
+    private List<UserMessage> mMessages = new LinkedList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        initFirebase();
 
         mSendButton = (Button) findViewById(R.id.send_button);
         mInputBox = (EditText) findViewById(R.id.chat_box);
@@ -42,9 +58,8 @@ public class MainActivity extends AppCompatActivity {
                 String input = mInputBox.getText().toString();
 
                 if (!TextUtils.isEmpty(input)) {
-
-                    Toast.makeText(MainActivity.this, input, Toast.LENGTH_SHORT).show();
-
+                    UserMessage userMessage = new UserMessage(input, "Anonymous");
+                    mMessagesReference.push().setValue(userMessage);
                     mInputBox.setText("");
                 }
 
@@ -54,17 +69,56 @@ public class MainActivity extends AppCompatActivity {
 
         ArrayList<UserMessage> items = new ArrayList<>();
 
-        UserMessage userMessage = new UserMessage("Samhita", "Sam");
-        UserMessage userMessage1 = new UserMessage("Samhita", "Sam");
-        UserMessage userMessage2 = new UserMessage("Samhita", "Sam");
-
-        items.add(userMessage);
-        items.add(userMessage1);
-        items.add(userMessage2);
-
-        MyAdapter myAdapter = new MyAdapter(MainActivity.this, items);
+        myAdapter = new MyAdapter(MainActivity.this, items);
         mListView.setAdapter(myAdapter);
   }
+
+    private void initFirebase() {
+
+        mFirebaseDatabase = FirebaseDatabase.getInstance();
+        mMessagesReference = mFirebaseDatabase.getReference("messages");
+        attachChildEventListener();
+
+    }
+
+    private void attachChildEventListener () {
+
+        if (mChildEventListener == null) {
+
+            mChildEventListener = new ChildEventListener() {
+                @Override
+                public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+
+                    UserMessage userMessage = dataSnapshot.getValue(UserMessage.class);
+                    myAdapter.add(userMessage);
+
+                }
+
+                @Override
+                public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+                }
+
+                @Override
+                public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+                }
+
+                @Override
+                public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+                }
+
+                @Override
+                public void onCancelled(DatabaseError databaseError) {
+
+                }
+            };
+
+            mMessagesReference.addChildEventListener(mChildEventListener);
+        }
+
+    }
 
     private class MyAdapter extends ArrayAdapter<UserMessage> {
 
@@ -80,15 +134,15 @@ public class MainActivity extends AppCompatActivity {
                convertView = LayoutInflater.from(MainActivity.this).inflate(R.layout.messagelistlayout, null, false);
            }
 
-            TextView messageView = (TextView) convertView.findViewById(R.id.usermessage);
-            TextView userView = (TextView) convertView.findViewById(R.id.user);
+        TextView messageView = (TextView) convertView.findViewById(R.id.usermessage);
+        TextView userView = (TextView) convertView.findViewById(R.id.user);
 
-            UserMessage userMessage = getItem(position);
+        UserMessage userMessage = getItem(position);
 
-            messageView.setText(userMessage.getMessage());
-            userView.setText(userMessage.getSender());
+        messageView.setText(userMessage.getMessage());
+        userView.setText(userMessage.getSender());
 
-            return convertView;
+        return convertView;
         }
     }
 
